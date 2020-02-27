@@ -151,29 +151,61 @@ def gen_zonal_stats(
             if 'Point' in geom.type:
                 geom = boxify_points(geom, rast)
 
-            geom_bounds = tuple(geom.bounds)
+            if geom.type == 'MultiPolygon':
+                #use python lists to keep data that's read as a flattened 1-D array
+                raster_list = []
+                rv_list = []
+                nodata_list = []
+                for singlePolygon in geom:
 
-            fsrc = rast.read(bounds=geom_bounds)
+                    polygon_bounds = tuple(singlePolygon.bounds)
 
-            # rasterized geometry
-            rv_array = rasterize_geom(geom, like=fsrc, all_touched=all_touched)
+                    polygon_fsrc = rast.read(bounds=polygon_bounds)
 
-            # nodata mask
-            isnodata = (fsrc.array == fsrc.nodata)
+                    # rasterized geometry
+                    rv_array = rasterize_geom(singlePolygon, like=polygon_fsrc, all_touched=all_touched)
 
-            # add nan mask (if necessary)
-            has_nan = (
-                np.issubdtype(fsrc.array.dtype, np.floating)
-                and np.isnan(fsrc.array.min()))
-            if has_nan:
-                isnodata = (isnodata | np.isnan(fsrc.array))
+                    # nodata mask
+                    polygon_isnodata = (polygon_fsrc.array == polygon_fsrc.nodata)
+
+                    # add nan mask (if necessary)
+                    has_nan = (
+                        np.issubdtype(polygon_fsrc.array.dtype, np.floating)
+                        and np.isnan(polygon_fsrc.array.min()))
+                    if has_nan:
+                        polygon_isnodata = (polygon_isnodata | np.isnan(polygon_fsrc.array))
+
+                    raster_list.extend(polygon_fsrc.array.ravel())
+                    rv_list.extend(rv_array.ravel())
+                    nodata_list.extend(polygon_isnodata.ravel())
+
+                # Mask the source data array
+                # mask everything that is not a valid value or not within our geom
+                fsrc = np.array(raster_list)
+                rv_array = np.array(rv_list)
+                isnodata = np.array(nodata_list)
+            else:
+
+                fsrc = rast.read(bounds=geom_bounds)
+
+                # rasterized geometry
+                rv_array = rasterize_geom(geom, like=fsrc, all_touched=all_touched)
+
+                # nodata mask
+                isnodata = (fsrc.array == fsrc.nodata)
+
+                # add nan mask (if necessary)
+                has_nan = (
+                        np.issubdtype(fsrc.array.dtype, np.floating)
+                        and np.isnan(fsrc.array.min()))
+                if has_nan:
+                    isnodata = (isnodata | np.isnan(fsrc.array))
 
             # Mask the source data array
             # mask everything that is not a valid value or not within our geom
             masked = np.ma.MaskedArray(
                 fsrc.array,
                 mask=(isnodata | ~rv_array))
-
             # If we're on 64 bit platform and the array is an integer type
             # make sure we cast to 64 bit to avoid overflow.
             # workaround for https://github.com/numpy/numpy/issues/8433
