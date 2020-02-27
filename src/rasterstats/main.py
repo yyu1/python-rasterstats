@@ -145,25 +145,26 @@ def gen_zonal_stats(
 
     with Raster(raster, affine, nodata, band) as rast:
         features_iter = read_features(vectors, layer)
+        rast_dtype_dict = {i: dtype for i, dtype in zip(rast.src.indexes, rast.src.dtypes)}
         for _, feat in enumerate(features_iter):
             geom = shape(feat['geometry'])
 
             if 'Point' in geom.type:
                 geom = boxify_points(geom, rast)
 
-            if geom.type == 'MultiPolygon':
+            if 'MultiPolygon' in geom.type:
                 #use python lists to keep data that's read as a flattened 1-D array
-                raster_list = []
-                rv_list = []
-                nodata_list = []
+                fsrc = None
+                rv_array = None
+                isnodata = None
                 for singlePolygon in geom:
 
                     polygon_bounds = tuple(singlePolygon.bounds)
-
+                    print(polygon_bounds, flush=True)
                     polygon_fsrc = rast.read(bounds=polygon_bounds)
 
                     # rasterized geometry
-                    rv_array = rasterize_geom(singlePolygon, like=polygon_fsrc, all_touched=all_touched)
+                    polygon_rv_array = rasterize_geom(singlePolygon, like=polygon_fsrc, all_touched=all_touched)
 
                     # nodata mask
                     polygon_isnodata = (polygon_fsrc.array == polygon_fsrc.nodata)
@@ -175,15 +176,17 @@ def gen_zonal_stats(
                     if has_nan:
                         polygon_isnodata = (polygon_isnodata | np.isnan(polygon_fsrc.array))
 
-                    raster_list.extend(polygon_fsrc.array.ravel())
-                    rv_list.extend(rv_array.ravel())
-                    nodata_list.extend(polygon_isnodata.ravel())
+                    if fsrc is None:
+                        fsrc = np.ravel(polygon_fsrc)
+                        rv_array = np.ravel(polygon_rv_array)
+                        isnodata = np.ravel(polygon_isnodata)
+                    else:
+                        np.append(fsrc, polygon_fsrc)
+                        np.append(rv_array, polygon_rv_array)
+                        np.append(isnodata, polygon_isnodata)
 
-                # Mask the source data array
-                # mask everything that is not a valid value or not within our geom
-                fsrc = np.array(raster_list)
-                rv_array = np.array(rv_list)
-                isnodata = np.array(nodata_list)
+                    print('read one polygon in multipolygon',flush=True)
+
             else:
 
                 fsrc = rast.read(bounds=geom_bounds)
