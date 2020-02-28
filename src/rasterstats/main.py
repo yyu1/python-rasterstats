@@ -187,6 +187,8 @@ def gen_zonal_stats(
 
                     print('read one polygon in multipolygon',flush=True)
 
+                masked = np.ma.MaskedArray(fsc, mask = (isnodata | ~rv_array))
+
             else:
 
                 fsrc = rast.read(bounds=geom_bounds)
@@ -204,11 +206,11 @@ def gen_zonal_stats(
                 if has_nan:
                     isnodata = (isnodata | np.isnan(fsrc.array))
 
-            # Mask the source data array
-            # mask everything that is not a valid value or not within our geom
-            masked = np.ma.MaskedArray(
-                fsrc.array,
-                mask=(isnodata | ~rv_array))
+                # Mask the source data array
+                # mask everything that is not a valid value or not within our geom
+                masked = np.ma.MaskedArray(
+                    fsrc.array,
+                    mask=(isnodata | ~rv_array))
             # If we're on 64 bit platform and the array is an integer type
             # make sure we cast to 64 bit to avoid overflow.
             # workaround for https://github.com/numpy/numpy/issues/8433
