@@ -187,7 +187,7 @@ def gen_zonal_stats(
 
                     print('read one polygon in multipolygon',flush=True)
 
-                masked = np.ma.MaskedArray(fsc, mask = (isnodata | ~rv_array))
+                masked = np.ma.MaskedArray(fsrc, mask = (isnodata | ~rv_array))
 
             else:
 
