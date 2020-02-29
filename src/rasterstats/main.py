@@ -177,11 +177,11 @@ def gen_zonal_stats(
                         polygon_isnodata = (polygon_isnodata | np.isnan(polygon_fsrc.array))
 
                     if fsrc is None:
-                        fsrc = np.ravel(polygon_fsrc)
+                        fsrc = np.ravel(polygon_fsrc.array)
                         rv_array = np.ravel(polygon_rv_array)
                         isnodata = np.ravel(polygon_isnodata)
                     else:
-                        np.append(fsrc, polygon_fsrc)
+                        np.append(fsrc, polygon_fsrc.array)
                         np.append(rv_array, polygon_rv_array)
                         np.append(isnodata, polygon_isnodata)
 
