@@ -191,6 +191,7 @@ def gen_zonal_stats(
 
             else:
 
+                geom_bounds = tuple(geom.bounds)
                 fsrc = rast.read(bounds=geom_bounds)
 
                 # rasterized geometry
